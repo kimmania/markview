@@ -156,8 +156,8 @@ See the full [Product Plan](.hermes/plans/2026-06-19_markdown-viewer-editor-plan
 | 2: Live Split-Pane Preview | ✅ | CodeMirror editor + GFM live preview |
 | 3: Sidebar & Tabs | ✅ | Folder tree, multi-tab, quick switcher |
 | 4: Markdown Enhancements | ✅ | KaTeX, Mermaid, WikiLinks, images |
-| 5: PDF Export, Settings, Polish | ⏳ | PDF export, global search, settings |
-| 6: Distribution | ⏳ | Auto-updater, code signing |
+| 5: Settings, Find/Replace, Polish | ✅ | Settings modal, auto-save, native menus, word count, restore tabs |
+| 6: Distribution | ✅ | GitHub Release `v0.1.0` with `.dmg` for Apple Silicon |
 
 ## License
 
