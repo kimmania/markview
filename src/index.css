@@ -73,17 +73,14 @@ body.dark {
 
 /* Print styles */
 @media print {
-  /* Hide the entire app UI */
-  body > * {
+  /* Hide only the app UI wrapper */
+  #app-root {
     display: none !important;
   }
 
-  /* Show only the print container */
+  /* Show the print container */
   .print-only {
     display: block !important;
-    position: static !important;
-    left: auto !important;
-    width: 100% !important;
   }
 
   /* Force light mode for readability */
@@ -93,7 +90,6 @@ body.dark {
     background: white !important;
   }
 
-  /* Ensure prose content is readable */
   .print-only .prose-invert,
   .print-only .prose-invert * {
     color: black !important;
@@ -106,7 +102,6 @@ body.dark {
     border-color: #e5e7eb !important;
   }
 
-  /* Page margins */
   @page {
     margin: 2cm;
   }

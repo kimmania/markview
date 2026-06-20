@@ -337,7 +337,7 @@ function App() {
   }, [activeTab]);
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
+    <div id="app-root" className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
       {sidebarVisible && (
         <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col">
@@ -616,10 +616,7 @@ function App() {
 
       {/* Hidden print container */}
       {activeTab && (
-        <div
-          className="print-only"
-          style={{ position: 'fixed', left: '-9999px', top: 0, width: '100%' }}
-        >
+        <div className="print-only" style={{ display: 'none' }}>
           <div className="prose prose-slate max-w-none p-8 bg-white text-black">
             <MarkdownPreview
               content={content}
