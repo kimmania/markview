@@ -13,6 +13,7 @@ import FolderTree from './components/FolderTree';
 import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
 import type { FileEntry, Tab } from './types';
+import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
 import './index.css';
 
 function App() {
@@ -33,6 +34,33 @@ function App() {
     });
   }, [darkMode]);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+
+  // ---- Settings ----
+  const [settings, setSettings] = useState<AppSettings>(loadSettings('{}'));
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    invoke<string>('get_settings').then((raw) => {
+      const s = loadSettings(raw);
+      setSettings(s);
+      // Apply theme immediately
+      if (s.theme === 'dark') setDarkMode(true);
+      else if (s.theme === 'light') setDarkMode(false);
+      else {
+        // system
+        setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    // Listen for system theme changes when theme is "system"
+    if (settings.theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (e: MediaQueryListEvent) => setDarkMode(e.matches);
+    mq.addEventListener('change', listener);
+    return () => mq.removeEventListener('change', listener);
+  }, [settings.theme]);
 
   // ---- Derived ----
   const activeTab = useMemo(
@@ -244,15 +272,30 @@ function App() {
 
           <div className="mt-auto p-2 border-t border-slate-200 dark:border-slate-700">
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={() => setSettingsOpen(true)}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <Settings className="w-4 h-4" />
-              {darkMode ? 'Light Mode' : 'Dark Mode'}
+              Settings
             </button>
           </div>
         </div>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        settings={settings}
+        onSave={(s) => {
+          setSettings(s);
+          invoke('set_settings', { settings_json: JSON.stringify(s) });
+          // Apply theme
+          if (s.theme === 'dark') setDarkMode(true);
+          else if (s.theme === 'light') setDarkMode(false);
+          else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+        }}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-950 min-w-0">
@@ -323,6 +366,7 @@ function App() {
                   content={content}
                   onChange={handleContentChange}
                   darkMode={darkMode}
+                  fontSize={settings.editorFontSize}
                 />
               </div>
             </Panel>

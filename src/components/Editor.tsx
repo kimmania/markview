@@ -6,11 +6,12 @@ interface EditorProps {
   content: string;
   onChange: (value: string) => void;
   darkMode: boolean;
+  fontSize?: number;
 }
 
-export default function Editor({ content, onChange, darkMode }: EditorProps) {
+export default function Editor({ content, onChange, darkMode, fontSize = 14 }: EditorProps) {
   return (
-    <div className="h-full">
+    <div className="h-full" style={{ fontSize: `${fontSize}px` }}>
       <CodeMirror
         value={content}
         height="100%"
@@ -23,7 +24,6 @@ export default function Editor({ content, onChange, darkMode }: EditorProps) {
           highlightActiveLine: true,
           foldGutter: false,
         }}
-        className="text-sm"
       />
     </div>
   );

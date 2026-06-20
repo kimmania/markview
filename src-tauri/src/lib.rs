@@ -1,4 +1,4 @@
-use tauri::command;
+use tauri::{command, Manager};
 use tauri_plugin_dialog::DialogExt;
 use std::fs;
 use std::path::Path;
@@ -104,7 +104,7 @@ async fn scan_vault(path: String) -> Result<Vec<FileEntry>, String> {
 #[command]
 async fn save_file_dialog(
     app_handle: tauri::AppHandle,
-    default_name: String,
+    _default_name: String,
 ) -> Result<Option<String>, String> {
     let file_path = app_handle
         .dialog()
@@ -112,6 +112,24 @@ async fn save_file_dialog(
         .add_filter("Markdown", &["md"])
         .blocking_save_file();
     Ok(file_path.map(|p| p.to_string()))
+}
+
+#[command]
+async fn get_settings(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    let settings_path = config_dir.join("settings.json");
+    if !settings_path.exists() {
+        return Ok(String::from("{}"));
+    }
+    fs::read_to_string(&settings_path).map_err(|e| e.to_string())
+}
+
+#[command]
+async fn set_settings(app_handle: tauri::AppHandle, settings_json: String) -> Result<(), String> {
+    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    let settings_path = config_dir.join("settings.json");
+    fs::write(&settings_path, settings_json).map_err(|e| e.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -132,6 +150,8 @@ pub fn run() {
       read_dir,
       scan_vault,
       save_file_dialog,
+      get_settings,
+      set_settings,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
