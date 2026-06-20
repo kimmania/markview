@@ -10,6 +10,7 @@ import { Folder, FileText, FolderOpen, Settings, Search } from 'lucide-react';
 import mermaid from 'mermaid';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
+import MarkdownToolbar from './components/MarkdownToolbar';
 import FolderTree from './components/FolderTree';
 import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
@@ -17,6 +18,7 @@ import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
 import { save } from '@tauri-apps/plugin-dialog';
 import { openSearchPanel } from '@codemirror/search';
+import { EditorView } from '@codemirror/view';
 import './index.css';
 
 function App() {
@@ -111,7 +113,7 @@ function App() {
   }, [vaultPath, tabs.length, activePath]);
 
   // ---- Editor ref for menu-driven Find ----
-  const editorViewRef = useRef<any>(null);
+  const [editorView, setEditorView] = useState<EditorView | null>(null);
 
   // ---- Menu event listener ----
   useEffect(() => {
@@ -139,8 +141,8 @@ function App() {
           break;
         case 'find':
         case 'replace':
-          if (editorViewRef.current) {
-            openSearchPanel(editorViewRef.current);
+          if (editorView) {
+            openSearchPanel(editorView);
           }
           break;
       }
@@ -465,14 +467,17 @@ function App() {
             className="flex-1 min-h-0"
           >
             <Panel defaultSize={50} minSize={20}>
-              <div className="h-full overflow-auto border-r border-slate-200 dark:border-slate-700">
-                <Editor
-                  content={content}
-                  onChange={handleContentChange}
-                  darkMode={darkMode}
-                  fontSize={settings.editorFontSize}
-                  onCreateEditor={(view) => { editorViewRef.current = view; }}
-                />
+              <div className="h-full flex flex-col border-r border-slate-200 dark:border-slate-700">
+                <MarkdownToolbar editorView={editorView} />
+                <div className="flex-1 overflow-auto min-h-0">
+                  <Editor
+                    content={content}
+                    onChange={handleContentChange}
+                    darkMode={darkMode}
+                    fontSize={settings.editorFontSize}
+                    onCreateEditor={(view) => { setEditorView(view); }}
+                  />
+                </div>
               </div>
             </Panel>
             <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize" />
