@@ -124,6 +124,34 @@ function App() {
     );
   };
 
+  const saveAsFile = async () => {
+    if (!activeTab) return;
+    const newPath = await invoke<string | null>('save_file_dialog', {
+      default_name: activeTab.name,
+    });
+    if (newPath) {
+      await invoke('write_file', {
+        path: newPath,
+        content: activeTab.content,
+      });
+      // Update the active tab to point to the new file
+      const newName = newPath.split('/').pop() || newPath;
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.path === activeTab.path
+            ? { ...t, path: newPath, name: newName, unsaved: false }
+            : t
+        )
+      );
+      setActivePath(newPath);
+      // Refresh vault tree if the new file lives in the current vault
+      if (vaultPath && newPath.startsWith(vaultPath)) {
+        const scanned = await invoke<FileEntry[]>('scan_vault', { path: vaultPath });
+        setVaultEntries(scanned);
+      }
+    }
+  };
+
   const createFile = async () => {
     const name = prompt('New file name:', 'untitled.md');
     if (name && vaultPath) {
@@ -152,7 +180,11 @@ function App() {
       // Cmd+S / Ctrl+S -> Save
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        saveFile();
+        if (e.shiftKey) {
+          saveAsFile();
+        } else {
+          saveFile();
+        }
       }
     };
     window.addEventListener('keydown', handler);
@@ -245,17 +277,25 @@ function App() {
             )}
           </div>
           {activeTab && (
-            <button
-              onClick={saveFile}
-              disabled={!activeTab.unsaved}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                activeTab.unsaved
-                  ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
-              }`}
-            >
-              Save
-            </button>
+            <>
+              <button
+                onClick={saveFile}
+                disabled={!activeTab.unsaved}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  activeTab.unsaved
+                    ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                Save
+              </button>
+              <button
+                onClick={saveAsFile}
+                className="px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                Save As
+              </button>
+            </>
           )}
         </div>
 

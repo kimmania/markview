@@ -101,6 +101,19 @@ async fn scan_vault(path: String) -> Result<Vec<FileEntry>, String> {
     scan_dir_recursive(&path)
 }
 
+#[command]
+async fn save_file_dialog(
+    app_handle: tauri::AppHandle,
+    default_name: String,
+) -> Result<Option<String>, String> {
+    let file_path = app_handle
+        .dialog()
+        .file()
+        .add_filter("Markdown", &["md"])
+        .blocking_save_file();
+    Ok(file_path.map(|p| p.to_string()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -118,6 +131,7 @@ pub fn run() {
       pick_folder,
       read_dir,
       scan_vault,
+      save_file_dialog,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
