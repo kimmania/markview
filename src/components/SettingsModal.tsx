@@ -5,6 +5,8 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system';
   editorFontSize: number;
   autoSave: boolean;
+  lastVaultPath?: string;
+  openTabs?: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {

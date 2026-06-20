@@ -50,8 +50,31 @@ function App() {
       if (s.theme === 'dark') setDarkMode(true);
       else if (s.theme === 'light') setDarkMode(false);
       else {
-        // system
         setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+      // Restore last vault
+      if (s.lastVaultPath) {
+        setVaultPath(s.lastVaultPath);
+        invoke<FileEntry[]>('scan_vault', { path: s.lastVaultPath }).then((entries) => {
+          setVaultEntries(entries);
+        });
+      }
+      // Restore open tabs
+      if (s.openTabs && s.openTabs.length > 0) {
+        const paths = s.openTabs.filter((p) => p.endsWith('.md'));
+        Promise.all(
+          paths.map((path) =>
+            invoke<string>('read_file', { path }).then((text) => ({
+              path,
+              name: path.split('/').pop() || path,
+              content: text,
+              unsaved: false,
+            }))
+          )
+        ).then((newTabs) => {
+          setTabs(newTabs);
+          if (newTabs.length > 0) setActivePath(newTabs[0].path);
+        });
       }
     });
   }, []);
@@ -72,6 +95,20 @@ function App() {
   );
 
   const content = activeTab?.content ?? '';
+
+  // ---- Persist workspace state ----
+  useEffect(() => {
+    if (!vaultPath && tabs.length === 0) return;
+    const timer = setTimeout(() => {
+      const updated = {
+        ...settings,
+        lastVaultPath: vaultPath ?? undefined,
+        openTabs: tabs.map((t) => t.path),
+      };
+      invoke('set_settings', { settings_json: JSON.stringify(updated) });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [vaultPath, tabs.length, activePath]);
 
   // ---- Editor ref for menu-driven Find ----
   const editorViewRef = useRef<any>(null);
@@ -402,6 +439,9 @@ function App() {
               >
                 Save As
               </button>
+              <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+                {content.trim() ? content.trim().split(/\s+/).length : 0} words
+              </span>
             </>
           )}
         </div>
