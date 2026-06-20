@@ -1,71 +1,117 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Group,
   Panel,
   Separator,
 } from 'react-resizable-panels';
-import { Folder, FileText, FolderOpen, Settings } from 'lucide-react';
+import { Folder, FileText, FolderOpen, Settings, Search } from 'lucide-react';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
+import FolderTree from './components/FolderTree';
+import TabBar from './components/TabBar';
+import QuickSwitcher from './components/QuickSwitcher';
+import type { FileEntry, Tab } from './types';
 import './index.css';
 
-interface FileEntry {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-}
-
 function App() {
+  // ---- State ----
   const [vaultPath, setVaultPath] = useState<string | null>(null);
-  const [files, setFiles] = useState<FileEntry[]>([]);
-  const [currentFile, setCurrentFile] = useState<string | null>(null);
-  const [content, setContent] = useState('');
+  const [vaultEntries, setVaultEntries] = useState<FileEntry[]>([]);
+  const [tabs, setTabs] = useState<Tab[]>([]);
+  const [activePath, setActivePath] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-  const [unsaved, setUnsaved] = useState(false);
+  const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 
+  // ---- Derived ----
+  const activeTab = useMemo(
+    () => tabs.find((t) => t.path === activePath) || null,
+    [tabs, activePath]
+  );
+
+  const content = activeTab?.content ?? '';
+
+  // ---- Vault ----
   const openVault = async () => {
     const path = await invoke<string | null>('pick_folder');
     if (path) {
       setVaultPath(path);
-      await refreshFiles(path);
+      setTabs([]);
+      setActivePath(null);
     }
   };
 
-  const refreshFiles = async (path: string) => {
-    const entries = await invoke<string[]>('read_dir', { path });
-    const parsed = entries.map((p) => ({
-      name: p.split('/').pop() || p,
-      path: p,
-      isDirectory: !p.endsWith('.md'),
-    }));
-    setFiles(parsed);
+  // ---- Tabs ----
+  const openFile = useCallback(
+    async (path: string) => {
+      if (!path.endsWith('.md')) return;
+
+      // Switch to existing tab if open
+      const existing = tabs.find((t) => t.path === path);
+      if (existing) {
+        setActivePath(path);
+        return;
+      }
+
+      // Ask before switching if current tab unsaved
+      const currentTab = tabs.find((t) => t.path === activePath);
+      if (currentTab?.unsaved) {
+        const ok = confirm('You have unsaved changes. Discard them?');
+        if (!ok) return;
+      }
+
+      const text = await invoke<string>('read_file', { path });
+      const name = path.split('/').pop() || path;
+      const newTab = { path, name, content: text, unsaved: false };
+      setTabs((prev) => [...prev, newTab]);
+      setActivePath(path);
+    },
+    [tabs, activePath]
+  );
+
+  const switchTab = (path: string) => {
+    setActivePath(path);
   };
 
-  const openFile = async (path: string) => {
-    if (!path.endsWith('.md')) return;
-    // Ask before switching if unsaved
-    if (unsaved && currentFile) {
-      const ok = confirm('You have unsaved changes. Discard them?');
+  const closeTab = (path: string) => {
+    const tab = tabs.find((t) => t.path === path);
+    if (tab?.unsaved) {
+      const ok = confirm(`Discard unsaved changes to "${tab.name}"?`);
       if (!ok) return;
     }
-    const text = await invoke<string>('read_file', { path });
-    setCurrentFile(path);
-    setContent(text);
-    setUnsaved(false);
-  };
 
-  const saveFile = async () => {
-    if (currentFile) {
-      await invoke('write_file', { path: currentFile, content });
-      setUnsaved(false);
+    setTabs((prev) => {
+      const filtered = prev.filter((t) => t.path !== path);
+      return filtered;
+    });
+
+    // If closing active tab, switch to nearest tab
+    if (activePath === path) {
+      const idx = tabs.findIndex((t) => t.path === path);
+      const next = tabs[idx - 1] || tabs[idx + 1];
+      setActivePath(next?.path ?? null);
     }
   };
 
   const handleContentChange = (value: string) => {
-    setContent(value);
-    setUnsaved(true);
+    if (!activePath) return;
+    setTabs((prev) =>
+      prev.map((t) =>
+        t.path === activePath ? { ...t, content: value, unsaved: true } : t
+      )
+    );
+  };
+
+  const saveFile = async () => {
+    if (!activeTab) return;
+    await invoke('write_file', {
+      path: activeTab.path,
+      content: activeTab.content,
+    });
+    setTabs((prev) =>
+      prev.map((t) => (t.path === activeTab.path ? { ...t, unsaved: false } : t))
+    );
   };
 
   const createFile = async () => {
@@ -73,19 +119,38 @@ function App() {
     if (name && vaultPath) {
       const path = `${vaultPath}/${name}`;
       await invoke('write_file', { path, content: '' });
-      setCurrentFile(path);
-      setContent('');
-      setUnsaved(false);
-      await refreshFiles(vaultPath);
+      // Scan vault
+      const scanned = await invoke<FileEntry[]>('scan_vault', { path: vaultPath });
+      setVaultEntries(scanned);
+      // Open in new tab
+      openFile(path);
     }
   };
 
-  const markdownFiles = files.filter((f) => f.path.endsWith('.md'));
+  const handleVaultScanned = (entries: FileEntry[]) => {
+    setVaultEntries(entries);
+  };
+
+  // ---- Keyboard shortcuts ----
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Cmd+P / Ctrl+P -> Quick Switcher
+      if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
+        e.preventDefault();
+        setQuickSwitcherOpen((open) => !open);
+      }
+      // Cmd+S / Ctrl+S -> Save
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        saveFile();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeTab]);
 
   return (
-    <div
-      className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}
-    >
+    <div className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
       {sidebarVisible && (
         <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col">
@@ -114,33 +179,26 @@ function App() {
                   <FileText className="w-4 h-4" />
                   New Note
                 </button>
-                <div className="mt-4">
-                  <div className="px-3 py-1 text-xs font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    Files
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {markdownFiles.map((file) => (
-                      <button
-                        key={file.path}
-                        onClick={() => openFile(file.path)}
-                        className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                          currentFile === file.path
-                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <FileText className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">{file.name}</span>
-                        {currentFile === file.path && unsaved && (
-                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <button
+                  onClick={() => setQuickSwitcherOpen(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                  Quick Switcher
+                  <kbd className="ml-auto text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500">
+                    ⌘P
+                  </kbd>
+                </button>
               </>
             )}
           </div>
+
+          <FolderTree
+            vaultPath={vaultPath}
+            currentFile={activePath}
+            onFileOpen={openFile}
+            onVaultScanned={handleVaultScanned}
+          />
 
           <div className="mt-auto p-2 border-t border-slate-200 dark:border-slate-700">
             <button
@@ -165,21 +223,23 @@ function App() {
             <Folder className="w-4 h-4" />
           </button>
           <div className="flex-1 text-sm text-slate-500 dark:text-slate-400 truncate">
-            {currentFile ? (
+            {activeTab ? (
               <span className="flex items-center gap-2">
-                {currentFile}
-                {unsaved && <span className="text-amber-500 text-xs">(unsaved)</span>}
+                {activeTab.path}
+                {activeTab.unsaved && (
+                  <span className="text-amber-500 text-xs">(unsaved)</span>
+                )}
               </span>
             ) : (
               'No file open'
             )}
           </div>
-          {currentFile && (
+          {activeTab && (
             <button
               onClick={saveFile}
-              disabled={!unsaved}
+              disabled={!activeTab.unsaved}
               className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                unsaved
+                activeTab.unsaved
                   ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200'
                   : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
               }`}
@@ -189,8 +249,20 @@ function App() {
           )}
         </div>
 
+        {/* Tab Bar */}
+        <TabBar
+          tabs={tabs.map((t) => ({
+            path: t.path,
+            name: t.name,
+            unsaved: t.unsaved,
+          }))}
+          activePath={activePath}
+          onTabClick={switchTab}
+          onTabClose={closeTab}
+        />
+
         {/* Split Pane Editor */}
-        {currentFile ? (
+        {activeTab ? (
           <Group
             orientation="horizontal"
             className="flex-1 min-h-0"
@@ -219,13 +291,26 @@ function App() {
               <p className="text-lg font-medium">Welcome to Markview</p>
               <p className="text-sm mt-2">
                 {vaultPath
-                  ? 'Select a file from the sidebar or create a new note'
+                  ? 'Select a file from the sidebar or press ⌘P'
                   : 'Open a vault folder to get started'}
               </p>
+              {vaultPath && (
+                <p className="text-xs mt-3 text-slate-500">
+                  Keyboard: ⌘S save · ⌘P quick open
+                </p>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      {/* Quick Switcher */}
+      <QuickSwitcher
+        isOpen={quickSwitcherOpen}
+        onClose={() => setQuickSwitcherOpen(false)}
+        entries={vaultEntries}
+        onFileOpen={openFile}
+      />
     </div>
   );
 }
