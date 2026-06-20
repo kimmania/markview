@@ -8,9 +8,10 @@ interface EditorProps {
   onChange: (value: string) => void;
   darkMode: boolean;
   fontSize?: number;
+  onCreateEditor?: (view: any) => void;
 }
 
-export default function Editor({ content, onChange, darkMode, fontSize = 14 }: EditorProps) {
+export default function Editor({ content, onChange, darkMode, fontSize = 14, onCreateEditor }: EditorProps) {
   return (
     <div className="h-full" style={{ fontSize: `${fontSize}px` }}>
       <CodeMirror
@@ -19,6 +20,7 @@ export default function Editor({ content, onChange, darkMode, fontSize = 14 }: E
         extensions={[markdown(), search()]}
         theme={darkMode ? oneDark : 'light'}
         onChange={onChange}
+        onCreateEditor={onCreateEditor}
         basicSetup={{
           lineNumbers: true,
           highlightActiveLineGutter: true,

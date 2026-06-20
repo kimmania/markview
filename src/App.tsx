@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import {
   Group,
   Panel,
@@ -15,6 +16,7 @@ import QuickSwitcher from './components/QuickSwitcher';
 import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
 import { save } from '@tauri-apps/plugin-dialog';
+import { openSearchPanel } from '@codemirror/search';
 import './index.css';
 
 function App() {
@@ -70,6 +72,48 @@ function App() {
   );
 
   const content = activeTab?.content ?? '';
+
+  // ---- Editor ref for menu-driven Find ----
+  const editorViewRef = useRef<any>(null);
+
+  // ---- Menu event listener ----
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen('menu_click', (event) => {
+      const id = event.payload as string;
+      switch (id) {
+        case 'open_vault':
+          openVault();
+          break;
+        case 'new_file':
+          createFile();
+          break;
+        case 'save':
+          saveFile();
+          break;
+        case 'save_as':
+          saveAsFile();
+          break;
+        case 'toggle_sidebar':
+          setSidebarVisible((v) => !v);
+          break;
+        case 'toggle_dark':
+          setDarkMode((v) => !v);
+          break;
+        case 'find':
+        case 'replace':
+          if (editorViewRef.current) {
+            openSearchPanel(editorViewRef.current);
+          }
+          break;
+      }
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // ---- Vault ----
   const openVault = async () => {
@@ -387,6 +431,7 @@ function App() {
                   onChange={handleContentChange}
                   darkMode={darkMode}
                   fontSize={settings.editorFontSize}
+                  onCreateEditor={(view) => { editorViewRef.current = view; }}
                 />
               </div>
             </Panel>
