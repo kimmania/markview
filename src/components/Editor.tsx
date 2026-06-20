@@ -10,7 +10,7 @@ interface EditorProps {
 
 export default function Editor({ content, onChange, darkMode }: EditorProps) {
   return (
-    <div className="h-full overflow-hidden">
+    <div className="h-full">
       <CodeMirror
         value={content}
         height="100%"

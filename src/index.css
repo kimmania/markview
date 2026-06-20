@@ -32,6 +32,18 @@ body.dark {
   flex-direction: column;
 }
 
+/* CodeMirror editor must fill its container for scrolling to work */
+.cm-editor {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column;
+}
+
+.cm-scroller {
+  flex: 1 1 auto !important;
+  overflow: auto !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -278,7 +278,7 @@ function App() {
             className="flex-1 min-h-0"
           >
             <Panel defaultSize={50} minSize={20}>
-              <div className="h-full border-r border-slate-200 dark:border-slate-700">
+              <div className="h-full overflow-auto border-r border-slate-200 dark:border-slate-700">
                 <Editor
                   content={content}
                   onChange={handleContentChange}
@@ -288,11 +288,13 @@ function App() {
             </Panel>
             <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize" />
             <Panel defaultSize={50} minSize={20}>
-              <MarkdownPreview
-                content={content}
-                darkMode={darkMode}
-                currentFile={activePath}
-              />
+              <div className="h-full overflow-auto">
+                <MarkdownPreview
+                  content={content}
+                  darkMode={darkMode}
+                  currentFile={activePath}
+                />
+              </div>
             </Panel>
           </Group>
         ) : (
