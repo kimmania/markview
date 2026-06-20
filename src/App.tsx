@@ -6,7 +6,7 @@ import {
   Panel,
   Separator,
 } from 'react-resizable-panels';
-import { Folder, FileText, FolderOpen, Settings, Search } from 'lucide-react';
+import { Folder, FileText, FolderOpen, Settings, Search, BookOpen } from 'lucide-react';
 import mermaid from 'mermaid';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
@@ -17,6 +17,7 @@ import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
 import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
+import HelpModal from './components/HelpModal';
 import { save } from '@tauri-apps/plugin-dialog';
 import { openSearchPanel } from '@codemirror/search';
 import { EditorView } from '@codemirror/view';
@@ -49,6 +50,7 @@ function App() {
   // ---- Settings ----
   const [settings, setSettings] = useState<AppSettings>(loadSettings('{}'));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     invoke<string>('get_settings').then((raw) => {
@@ -385,13 +387,20 @@ function App() {
             onVaultScanned={handleVaultScanned}
           />
 
-          <div className="mt-auto p-2 border-t border-slate-200 dark:border-slate-700">
+          <div className="mt-auto p-2 border-t border-slate-200 dark:border-slate-700 space-y-1">
             <button
               onClick={() => setSettingsOpen(true)}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               <Settings className="w-4 h-4" />
               Settings
+            </button>
+            <button
+              onClick={() => setHelpOpen(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <BookOpen className="w-4 h-4" />
+              Help
             </button>
           </div>
         </div>
@@ -410,6 +419,11 @@ function App() {
           else if (s.theme === 'light') setDarkMode(false);
           else setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
         }}
+      />
+
+      <HelpModal
+        isOpen={helpOpen}
+        onClose={() => setHelpOpen(false)}
       />
 
       {/* Main Content */}
