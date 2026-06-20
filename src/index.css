@@ -73,7 +73,7 @@ body.dark {
 
 /* Print styles */
 @media print {
-  /* Hide only the app UI wrapper */
+  /* Hide the app UI */
   #app-root {
     display: none !important;
   }
@@ -105,4 +105,12 @@ body.dark {
   @page {
     margin: 2cm;
   }
+}
+
+/* Off-screen positioning for normal view */
+.print-only {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 100%;
 }

@@ -614,9 +614,9 @@ function App() {
         )}
       </div>
 
-      {/* Hidden print container */}
+      {/* Print container — always rendered off-screen, shown in print */}
       {activeTab && (
-        <div className="print-only" style={{ display: 'none' }}>
+        <div className="print-only">
           <div className="prose prose-slate max-w-none p-8 bg-white text-black">
             <MarkdownPreview
               content={content}
