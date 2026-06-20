@@ -10,6 +10,7 @@ import { Folder, FileText, FolderOpen, Settings, Search } from 'lucide-react';
 import mermaid from 'mermaid';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
+import InlinePreview from './components/InlinePreview';
 import MarkdownToolbar from './components/MarkdownToolbar';
 import FolderTree from './components/FolderTree';
 import TabBar from './components/TabBar';
@@ -554,9 +555,10 @@ function App() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 overflow-auto" id="printarea">
-              <MarkdownPreview
+            <div className="flex-1 min-h-0">
+              <InlinePreview
                 content={content}
+                onChange={handleContentChange}
                 darkMode={darkMode}
                 currentFile={activePath}
               />
