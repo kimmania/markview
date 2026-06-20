@@ -14,6 +14,7 @@ import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
 import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
+import { save } from '@tauri-apps/plugin-dialog';
 import './index.css';
 
 function App() {
@@ -154,8 +155,9 @@ function App() {
 
   const saveAsFile = async () => {
     if (!activeTab) return;
-    const newPath = await invoke<string | null>('save_file_dialog', {
-      default_name: activeTab.name,
+    const newPath = await save({
+      defaultPath: activeTab.name,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (newPath) {
       await invoke('write_file', {
@@ -324,7 +326,8 @@ function App() {
               <button
                 onClick={saveFile}
                 disabled={!activeTab.unsaved}
-                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                type="button"
+                className={`relative z-10 px-3 py-1 text-sm rounded-md transition-colors ${
                   activeTab.unsaved
                     ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200'
                     : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed'
@@ -334,13 +337,14 @@ function App() {
               </button>
               <button
                 onClick={saveAsFile}
-                className="px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                type="button"
+                className="relative z-10 px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 Save As
               </button>
               <button
-                onClick={() => { window.print(); }}
-                className="px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                onClick={async () => { await invoke('print_window'); }}
+                className="relative z-10 px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
                 Export PDF
               </button>

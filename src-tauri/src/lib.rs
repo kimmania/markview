@@ -115,6 +115,11 @@ async fn save_file_dialog(
 }
 
 #[command]
+async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.print().map_err(|e| e.to_string())
+}
+
+#[command]
 async fn get_settings(app_handle: tauri::AppHandle) -> Result<String, String> {
     let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
     let settings_path = config_dir.join("settings.json");
@@ -150,6 +155,7 @@ pub fn run() {
       read_dir,
       scan_vault,
       save_file_dialog,
+      print_window,
       get_settings,
       set_settings,
     ])
