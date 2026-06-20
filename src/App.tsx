@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Group,
@@ -152,6 +152,22 @@ function App() {
       prev.map((t) => (t.path === activeTab.path ? { ...t, unsaved: false } : t))
     );
   };
+
+  // ---- Auto-save ----
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
+    if (!settings.autoSave || !activeTab?.unsaved) return;
+    const timer = setTimeout(() => {
+      const tab = activeTabRef.current;
+      if (!tab || !tab.unsaved) return;
+      invoke('write_file', { path: tab.path, content: tab.content }).then(() => {
+        setTabs((prev) => prev.map((t) => (t.path === tab.path ? { ...t, unsaved: false } : t)));
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeTab?.content, settings.autoSave]);
 
   const saveAsFile = async () => {
     if (!activeTab) return;

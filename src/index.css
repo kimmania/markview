@@ -121,17 +121,27 @@ body.dark {
     background-color: white !important;
   }
   /* Force react-resizable-panels to single full-width column */
-  [data-panel-group-id] {
+  [data-group] {
     display: block !important;
-    grid-template-columns: none !important;
     width: 100% !important;
+    height: auto !important;
   }
-  [data-panel-group-id] > [data-panel-id]:not(.no-print),
-  [data-panel-group-id] > [data-panel-group-id]:not(.no-print) {
+  [data-group] > * {
+    display: none !important;
+    width: 0 !important;
+    flex: 0 !important;
+  }
+  [data-group] > [data-panel]:not(.no-print) {
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    flex: none !important;
-    display: block !important;
+    flex: 0 0 100% !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  [data-separator] {
+    display: none !important;
   }
   /* Force preview pane to full width in print */
   #printarea {
