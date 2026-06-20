@@ -120,6 +120,19 @@ body.dark {
   .dark [class*="bg-amber"] {
     background-color: white !important;
   }
+  /* Force react-resizable-panels to single full-width column */
+  [data-panel-group-id] {
+    display: block !important;
+    grid-template-columns: none !important;
+    width: 100% !important;
+  }
+  [data-panel-group-id] > [data-panel-id]:not(.no-print),
+  [data-panel-group-id] > [data-panel-group-id]:not(.no-print) {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    display: block !important;
+  }
   /* Force preview pane to full width in print */
   #printarea {
     width: 100% !important;
