@@ -1,10 +1,46 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import mermaid from 'mermaid';
 import { Pencil } from 'lucide-react';
+
+function MermaidBlock({ chart }: { chart: string }) {
+  const [svg, setSvg] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = `mermaid-${Math.random().toString(36).slice(2)}`;
+    mermaid
+      .render(id, chart)
+      .then(({ svg: svgStr }) => {
+        if (!cancelled) setSvg(svgStr);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Mermaid render error');
+      });
+    return () => { cancelled = true; };
+  }, [chart]);
+
+  if (error) {
+    return (
+      <div className="rounded-md overflow-auto my-4 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+        <p className="font-semibold">Mermaid Error</p>
+        <pre className="mt-1 whitespace-pre-wrap">{error}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-md overflow-auto my-4 p-3 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
 
 interface InlinePreviewProps {
   content: string;
@@ -158,6 +194,27 @@ export default function InlinePreview({ content, onChange, darkMode }: InlinePre
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
                   rehypePlugins={[rehypeKatex, rehypeHighlight]}
+                  components={{
+                    code: ({ inline, className, children }: any) => {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const lang = match ? match[1] : '';
+                      if (!inline && lang === 'mermaid') {
+                        return <MermaidBlock chart={String(children || '').trim()} />;
+                      }
+                      if (!inline) {
+                        return (
+                          <pre className="rounded-md overflow-auto my-4 p-4 text-sm bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+                            <code className={className}>{children}</code>
+                          </pre>
+                        );
+                      }
+                      return (
+                        <code className="px-1.5 py-0.5 rounded text-sm font-mono bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200">
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
                 >
                   {block}
                 </ReactMarkdown>
