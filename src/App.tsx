@@ -241,7 +241,7 @@ function App() {
     <div className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
       {sidebarVisible && (
-        <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col no-print">
+        <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex flex-col">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700">
             <h1 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <FileText className="w-5 h-5" />
@@ -318,7 +318,7 @@ function App() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-950 min-w-0">
         {/* Toolbar */}
-        <div className="h-11 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 gap-3 bg-slate-50 dark:bg-slate-900 shrink-0 no-print">
+        <div className="h-11 border-b border-slate-200 dark:border-slate-700 flex items-center px-4 gap-3 bg-slate-50 dark:bg-slate-900 shrink-0">
           <button
             onClick={() => setSidebarVisible(!sidebarVisible)}
             className="p-1.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
@@ -358,12 +358,6 @@ function App() {
               >
                 Save As
               </button>
-              <button
-                onClick={async () => { await invoke('print_window'); }}
-                className="relative z-10 px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-              >
-                Export PDF
-              </button>
             </>
           )}
         </div>
@@ -386,7 +380,7 @@ function App() {
             orientation="horizontal"
             className="flex-1 min-h-0"
           >
-            <Panel defaultSize={50} minSize={20} className="no-print">
+            <Panel defaultSize={50} minSize={20}>
               <div className="h-full overflow-auto border-r border-slate-200 dark:border-slate-700">
                 <Editor
                   content={content}
@@ -396,7 +390,7 @@ function App() {
                 />
               </div>
             </Panel>
-            <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize no-print" />
+            <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize" />
             <Panel defaultSize={50} minSize={20}>
               <div className="h-full overflow-auto" id="printarea">
                 <MarkdownPreview
