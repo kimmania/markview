@@ -504,6 +504,22 @@ function App() {
               >
                 Save As
               </button>
+              <button
+                onClick={() => {
+                  if (settings.showPdfHelp) {
+                    const msg = `To save as PDF on macOS:\n\n1. In the print dialog, click the PDF dropdown in the bottom-left corner.\n2. Select Save as PDF.\n\n(This hint won't show again.)`;
+                    alert(msg);
+                    const updated = { ...settings, showPdfHelp: false };
+                    setSettings(updated);
+                    invoke('set_settings', { settings_json: JSON.stringify(updated) });
+                  }
+                  setTimeout(() => window.print(), 100);
+                }}
+                type="button"
+                className="relative z-10 px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                Export PDF
+              </button>
               <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
                 {content.trim() ? content.trim().split(/\s+/).length : 0} words
               </span>
@@ -597,6 +613,22 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Hidden print container */}
+      {activeTab && (
+        <div
+          className="print-only"
+          style={{ position: 'fixed', left: '-9999px', top: 0, width: '100%' }}
+        >
+          <div className="prose prose-slate max-w-none p-8 bg-white text-black">
+            <MarkdownPreview
+              content={content}
+              darkMode={false}
+              currentFile={activePath}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Quick Switcher */}
       <QuickSwitcher

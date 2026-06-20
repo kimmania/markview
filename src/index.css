@@ -70,3 +70,44 @@ body.dark {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* Print styles */
+@media print {
+  /* Hide the entire app UI */
+  body > * {
+    display: none !important;
+  }
+
+  /* Show only the print container */
+  .print-only {
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    width: 100% !important;
+  }
+
+  /* Force light mode for readability */
+  .print-only,
+  .print-only * {
+    color: black !important;
+    background: white !important;
+  }
+
+  /* Ensure prose content is readable */
+  .print-only .prose-invert,
+  .print-only .prose-invert * {
+    color: black !important;
+  }
+
+  .print-only pre,
+  .print-only code {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+    border-color: #e5e7eb !important;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 2cm;
+  }
+}

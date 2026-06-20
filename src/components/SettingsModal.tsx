@@ -7,12 +7,14 @@ export interface Settings {
   autoSave: boolean;
   lastVaultPath?: string;
   openTabs?: string[];
+  showPdfHelp?: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   editorFontSize: 14,
   autoSave: false,
+  showPdfHelp: true,
 };
 
 interface SettingsModalProps {
