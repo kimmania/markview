@@ -29,6 +29,11 @@ function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [viewMode, setViewMode] = useState<'source' | 'split' | 'preview'>('split');
+
+  const cycleViewMode = () => {
+    setViewMode((m) => (m === 'source' ? 'split' : m === 'split' ? 'preview' : 'source'));
+  };
 
   // Sync Mermaid theme with dark mode
   useEffect(() => {
@@ -138,6 +143,9 @@ function App() {
           break;
         case 'toggle_dark':
           setDarkMode((v) => !v);
+          break;
+        case 'cycle_view':
+          cycleViewMode();
           break;
         case 'find':
         case 'replace':
@@ -315,6 +323,11 @@ function App() {
           saveFile();
         }
       }
+      // Cmd+\ -> Cycle view mode
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        cycleViewMode();
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -422,6 +435,41 @@ function App() {
           </div>
           {activeTab && (
             <>
+              <div className="flex items-center rounded-md overflow-hidden border border-slate-200 dark:border-slate-700 text-xs">
+                <button
+                  onClick={() => setViewMode('source')}
+                  type="button"
+                  className={`px-2.5 py-1 transition-colors ${
+                    viewMode === 'source'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100'
+                      : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  Source
+                </button>
+                <button
+                  onClick={() => setViewMode('split')}
+                  type="button"
+                  className={`px-2.5 py-1 transition-colors border-l border-slate-200 dark:border-slate-700 ${
+                    viewMode === 'split'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100'
+                      : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  Split
+                </button>
+                <button
+                  onClick={() => setViewMode('preview')}
+                  type="button"
+                  className={`px-2.5 py-1 transition-colors border-l border-slate-200 dark:border-slate-700 ${
+                    viewMode === 'preview'
+                      ? 'bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-100'
+                      : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  Preview
+                </button>
+              </div>
               <button
                 onClick={saveFile}
                 disabled={!activeTab.unsaved}
@@ -460,37 +508,60 @@ function App() {
           onTabClose={closeTab}
         />
 
-        {/* Split Pane Editor */}
+        {/* Editor Area */}
         {activeTab ? (
-          <Group
-            orientation="horizontal"
-            className="flex-1 min-h-0"
-          >
-            <Panel defaultSize={50} minSize={20}>
-              <div className="h-full flex flex-col border-r border-slate-200 dark:border-slate-700">
-                <MarkdownToolbar editorView={editorView} />
-                <div className="flex-1 overflow-auto min-h-0">
-                  <Editor
+          viewMode === 'split' ? (
+            <Group
+              orientation="horizontal"
+              className="flex-1 min-h-0"
+            >
+              <Panel defaultSize={50} minSize={20}>
+                <div className="h-full flex flex-col border-r border-slate-200 dark:border-slate-700">
+                  <MarkdownToolbar editorView={editorView} />
+                  <div className="flex-1 overflow-auto min-h-0">
+                    <Editor
+                      content={content}
+                      onChange={handleContentChange}
+                      darkMode={darkMode}
+                      fontSize={settings.editorFontSize}
+                      onCreateEditor={(view) => { setEditorView(view); }}
+                    />
+                  </div>
+                </div>
+              </Panel>
+              <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize" />
+              <Panel defaultSize={50} minSize={20}>
+                <div className="h-full overflow-auto" id="printarea">
+                  <MarkdownPreview
                     content={content}
-                    onChange={handleContentChange}
                     darkMode={darkMode}
-                    fontSize={settings.editorFontSize}
-                    onCreateEditor={(view) => { setEditorView(view); }}
+                    currentFile={activePath}
                   />
                 </div>
-              </div>
-            </Panel>
-            <Separator className="w-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors cursor-col-resize" />
-            <Panel defaultSize={50} minSize={20}>
-              <div className="h-full overflow-auto" id="printarea">
-                <MarkdownPreview
+              </Panel>
+            </Group>
+          ) : viewMode === 'source' ? (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <MarkdownToolbar editorView={editorView} />
+              <div className="flex-1 overflow-auto min-h-0">
+                <Editor
                   content={content}
+                  onChange={handleContentChange}
                   darkMode={darkMode}
-                  currentFile={activePath}
+                  fontSize={settings.editorFontSize}
+                  onCreateEditor={(view) => { setEditorView(view); }}
                 />
               </div>
-            </Panel>
-          </Group>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-auto" id="printarea">
+              <MarkdownPreview
+                content={content}
+                darkMode={darkMode}
+                currentFile={activePath}
+              />
+            </div>
+          )
         ) : (
           <div className="flex-1 flex items-center justify-center text-slate-400 dark:text-slate-500">
             <div className="text-center">

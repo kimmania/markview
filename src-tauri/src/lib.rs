@@ -218,9 +218,14 @@ pub fn run() {
         .id("toggle_dark")
         .accelerator("CmdOrCtrl+Shift+D")
         .build(app)?;
+      let cycle_view = MenuItemBuilder::new("Cycle View Mode")
+        .id("cycle_view")
+        .accelerator("CmdOrCtrl+\\")
+        .build(app)?;
       
       let view_menu = SubmenuBuilder::new(app, "View")
         .item(&toggle_sidebar)
+        .item(&cycle_view)
         .separator()
         .item(&toggle_dark)
         .build()?;
