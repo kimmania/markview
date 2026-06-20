@@ -1,13 +1,102 @@
+import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import mermaid from 'mermaid';
+import { convertFileSrc } from '@tauri-apps/api/core';
+
+// Initialize Mermaid globally once
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'default',
+  securityLevel: 'strict',
+});
+
+// Lazy-loaded wiki-link plugin (UMD, avoid SSR issues)
+let wikiLinkPlugin: any = null;
+async function getWikiLinkPlugin() {
+  if (!wikiLinkPlugin) {
+    const mod = await import('remark-wiki-link');
+    wikiLinkPlugin = mod.default || mod.wikiLinkPlugin;
+  }
+  return wikiLinkPlugin;
+}
 
 interface MarkdownPreviewProps {
   content: string;
   darkMode: boolean;
+  currentFile: string | null;
 }
 
-export default function MarkdownPreview({ content, darkMode }: MarkdownPreviewProps) {
+function MermaidBlock({ chart }: { chart: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = `mermaid-${Math.random().toString(36).slice(2)}`;
+    mermaid
+      .render(id, chart)
+      .then(({ svg: svgStr }) => {
+        if (!cancelled) setSvg(svgStr);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Mermaid render error');
+      });
+    return () => { cancelled = true; };
+  }, [chart]);
+
+  if (error) {
+    return (
+      <div className="rounded-md overflow-auto my-3 p-3 text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">
+        <p className="font-semibold">Mermaid Error</p>
+        <pre className="mt-1 whitespace-pre-wrap">{error}</pre>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={ref}
+      className="rounded-md overflow-auto my-3 p-3 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
+
+function resolveImageSrc(src: string, currentFile: string | null): string {
+  if (!src) return '';
+  // Web URLs pass through
+  if (/^https?:\/\//.test(src)) return src;
+  // Absolute paths → convertFileSrc
+  if (src.startsWith('/')) {
+    return convertFileSrc(src);
+  }
+  // Relative paths → resolve against current file's directory
+  if (currentFile) {
+    const dir = currentFile.substring(0, currentFile.lastIndexOf('/'));
+    const resolved = `${dir}/${src}`;
+    return convertFileSrc(resolved);
+  }
+  return src;
+}
+
+export default function MarkdownPreview({ content, darkMode, currentFile }: MarkdownPreviewProps) {
+  const [wikiPlugin, setWikiPlugin] = useState<any>(null);
+
+  useEffect(() => {
+    getWikiLinkPlugin().then(setWikiPlugin);
+  }, []);
+
+  const remarkPlugins = [remarkGfm, remarkMath];
+  if (wikiPlugin) {
+    remarkPlugins.push(wikiPlugin);
+  }
+
   return (
     <div
       className={`h-full overflow-auto px-6 py-4 prose max-w-none ${
@@ -15,8 +104,8 @@ export default function MarkdownPreview({ content, darkMode }: MarkdownPreviewPr
       }`}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={[rehypeRaw, rehypeKatex, rehypeHighlight]}
         components={{
           h1: ({ children }) => <h1 className="text-2xl font-bold mt-6 mb-3">{children}</h1>,
           h2: ({ children }) => <h2 className="text-xl font-semibold mt-5 mb-2">{children}</h2>,
@@ -53,6 +142,16 @@ export default function MarkdownPreview({ content, darkMode }: MarkdownPreviewPr
               </code>
             );
           },
+          pre: ({ children }) => {
+            // Intercept mermaid code blocks
+            const codeEl = children as any;
+            if (codeEl?.props?.className?.includes('language-mermaid')) {
+              const chart = String(codeEl.props.children || '').trim();
+              return <MermaidBlock chart={chart} />;
+            }
+            // Default pre rendering (handled by code component above)
+            return <pre>{children}</pre>;
+          },
           table: ({ children }) => (
             <div className="overflow-x-auto my-4">
               <table className="min-w-full border-collapse border border-slate-200 dark:border-slate-700">
@@ -74,16 +173,35 @@ export default function MarkdownPreview({ content, darkMode }: MarkdownPreviewPr
             </td>
           ),
           hr: () => <hr className="my-4 border-slate-200 dark:border-slate-700" />,
-          a: ({ children, href }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ children, href, className }) => {
+            // Wiki-links get special styling
+            const isWiki = className?.includes('internal');
+            return (
+              <a
+                href={href}
+                target={isWiki ? undefined : '_blank'}
+                rel={isWiki ? undefined : 'noopener noreferrer'}
+                className={`${
+                  isWiki
+                    ? 'text-amber-600 dark:text-amber-400 hover:underline'
+                    : 'text-blue-600 dark:text-blue-400 hover:underline'
+                }`}
+              >
+                {children}
+              </a>
+            );
+          },
+          img: ({ src, alt }) => {
+            const resolvedSrc = resolveImageSrc(src || '', currentFile);
+            return (
+              <img
+                src={resolvedSrc}
+                alt={alt || ''}
+                className="max-w-full rounded-md my-3 border border-slate-200 dark:border-slate-700"
+                loading="lazy"
+              />
+            );
+          },
         }}
       >
         {content}

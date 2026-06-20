@@ -27,7 +27,10 @@
     "react-resizable-panels": "^4.11.2",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0",
+    "remark-wiki-link": "^2.0.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

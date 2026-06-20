@@ -6,6 +6,7 @@ import {
   Separator,
 } from 'react-resizable-panels';
 import { Folder, FileText, FolderOpen, Settings, Search } from 'lucide-react';
+import mermaid from 'mermaid';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
 import FolderTree from './components/FolderTree';
@@ -22,6 +23,15 @@ function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Sync Mermaid theme with dark mode
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: darkMode ? 'dark' : 'default',
+      securityLevel: 'strict',
+    });
+  }, [darkMode]);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 
   // ---- Derived ----
@@ -281,6 +291,7 @@ function App() {
               <MarkdownPreview
                 content={content}
                 darkMode={darkMode}
+                currentFile={activePath}
               />
             </Panel>
           </Group>
