@@ -1,6 +1,7 @@
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
+import { search } from '@codemirror/search';
 
 interface EditorProps {
   content: string;
@@ -15,7 +16,7 @@ export default function Editor({ content, onChange, darkMode, fontSize = 14 }: E
       <CodeMirror
         value={content}
         height="100%"
-        extensions={[markdown()]}
+        extensions={[markdown(), search()]}
         theme={darkMode ? oneDark : 'light'}
         onChange={onChange}
         basicSetup={{
