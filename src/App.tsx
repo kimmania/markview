@@ -33,6 +33,29 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [viewMode, setViewMode] = useState<'source' | 'split' | 'preview'>('split');
 
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const exportToPDF = async () => {
+    if (settings.showPdfHelp) {
+      const msg = `To save as PDF on macOS:\n\n1. In the print dialog, click the PDF dropdown in the bottom-left corner.\n2. Select Save as PDF.\n\n(This hint won't show again.)`;
+      alert(msg);
+      const updated = { ...settings, showPdfHelp: false };
+      setSettings(updated);
+      await invoke('set_settings', { settings_json: JSON.stringify(updated) });
+    }
+    setIsPrinting(true);
+    // Wait for React to paint the print view, then a tick for Mermaid/KaTeX
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 300);
+        });
+      });
+    });
+    await invoke('print_window');
+    setIsPrinting(false);
+  };
+
   const cycleViewMode = () => {
     setViewMode((m) => (m === 'source' ? 'split' : m === 'split' ? 'preview' : 'source'));
   };
@@ -336,6 +359,20 @@ function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [activeTab]);
 
+  if (isPrinting) {
+    return (
+      <div className="bg-white min-h-screen text-black">
+        <div className="prose prose-slate max-w-none p-8">
+          <MarkdownPreview
+            content={content}
+            darkMode={false}
+            currentFile={activePath}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="app-root" className={`flex h-screen w-screen overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
@@ -505,16 +542,7 @@ function App() {
                 Save As
               </button>
               <button
-                onClick={async () => {
-                  if (settings.showPdfHelp) {
-                    const msg = `To save as PDF on macOS:\n\n1. In the print dialog, click the PDF dropdown in the bottom-left corner.\n2. Select Save as PDF.\n\n(This hint won't show again.)`;
-                    alert(msg);
-                    const updated = { ...settings, showPdfHelp: false };
-                    setSettings(updated);
-                    await invoke('set_settings', { settings_json: JSON.stringify(updated) });
-                  }
-                  await invoke('print_window');
-                }}
+                onClick={exportToPDF}
                 type="button"
                 className="relative z-10 px-3 py-1 text-sm rounded-md transition-colors bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
               >
@@ -614,20 +642,6 @@ function App() {
         )}
       </div>
 
-      {/* Print container — always rendered off-screen, shown in print */}
-      {activeTab && (
-        <div className="print-only">
-          <div className="prose prose-slate max-w-none p-8 bg-white text-black">
-            <MarkdownPreview
-              content={content}
-              darkMode={false}
-              currentFile={activePath}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Quick Switcher */}
       <QuickSwitcher
         isOpen={quickSwitcherOpen}
         onClose={() => setQuickSwitcherOpen(false)}
