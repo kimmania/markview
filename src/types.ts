@@ -11,3 +11,11 @@ export interface Tab {
   content: string;
   unsaved: boolean;
 }
+
+export interface SearchMatch {
+  path: string;
+  name: string;
+  line: number;
+  snippet: string;
+  score: number;
+}

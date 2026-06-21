@@ -15,6 +15,7 @@ import MarkdownToolbar from './components/MarkdownToolbar';
 import FolderTree from './components/FolderTree';
 import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
+import VaultSearchModal from './components/VaultSearchModal';
 import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
 import HelpModal from './components/HelpModal';
@@ -71,6 +72,7 @@ function App() {
     });
   }, [darkMode]);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const [vaultSearchOpen, setVaultSearchOpen] = useState(false);
 
   // ---- Settings ----
   const [settings, setSettings] = useState<AppSettings>(loadSettings('{}'));
@@ -208,6 +210,9 @@ function App() {
           if (editorViewRef.current) {
             openSearchPanel(editorViewRef.current);
           }
+          break;
+        case 'vault_search':
+          setVaultSearchOpen(true);
           break;
       }
     }).then((fn) => {
@@ -366,6 +371,11 @@ function App() {
   // ---- Keyboard shortcuts ----
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Cmd+Shift+F -> Vault Search
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setVaultSearchOpen(true);
+      }
       // Cmd+P / Ctrl+P -> Quick Switcher
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') {
         e.preventDefault();
@@ -442,6 +452,16 @@ function App() {
                   Quick Switcher
                   <kbd className="ml-auto text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500">
                     ⌘P
+                  </kbd>
+                </button>
+                <button
+                  onClick={() => setVaultSearchOpen(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                  Search Vault
+                  <kbd className="ml-auto text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500">
+                    ⌘⇧F
                   </kbd>
                 </button>
               </>
@@ -677,6 +697,13 @@ function App() {
         isOpen={quickSwitcherOpen}
         onClose={() => setQuickSwitcherOpen(false)}
         entries={vaultEntries}
+        onFileOpen={openFile}
+      />
+
+      <VaultSearchModal
+        isOpen={vaultSearchOpen}
+        onClose={() => setVaultSearchOpen(false)}
+        vaultPath={vaultPath}
         onFileOpen={openFile}
       />
     </div>

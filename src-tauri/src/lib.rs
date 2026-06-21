@@ -16,6 +16,15 @@ pub struct FileEntry {
     children: Vec<FileEntry>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct SearchMatch {
+    path: String,
+    name: String,
+    line: usize,
+    snippet: String,
+    score: usize, // number of matches in the same file
+}
+
 #[command]
 async fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
@@ -103,6 +112,85 @@ fn scan_dir_recursive<P: AsRef<Path>>(dir: P) -> Result<Vec<FileEntry>, String> 
 #[command]
 async fn scan_vault(path: String) -> Result<Vec<FileEntry>, String> {
     scan_dir_recursive(&path)
+}
+
+fn search_file(path: &Path, query: &str) -> Result<Vec<SearchMatch>, String> {
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let query_lower = query.to_lowercase();
+    let name = path.file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
+    let mut matches = Vec::new();
+    
+    for (line_idx, line) in content.lines().enumerate() {
+        if line.to_lowercase().contains(&query_lower) {
+            // Snippet: trim whitespace, limit length
+            let snippet = if line.len() > 200 {
+                format!("{}…", &line[..200].trim())
+            } else {
+                line.trim().to_string()
+            };
+            matches.push(SearchMatch {
+                path: path.to_string_lossy().to_string(),
+                name: name.clone(),
+                line: line_idx + 1,
+                snippet,
+                score: 0, // filled later per-file
+            });
+        }
+    }
+    
+    let score = matches.len();
+    for m in &mut matches {
+        m.score = score;
+    }
+    
+    Ok(matches)
+}
+
+fn search_dir_recursive<P: AsRef<Path>>(dir: P, query: &str) -> Result<Vec<SearchMatch>, String> {
+    let path = dir.as_ref();
+    let mut all_matches = Vec::new();
+    let dir_iter = fs::read_dir(path).map_err(|e| e.to_string())?;
+    
+    for entry in dir_iter {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let entry_path = entry.path();
+        let name = entry_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+        
+        // Skip hidden
+        if name.starts_with('.') {
+            continue;
+        }
+        
+        if entry_path.is_dir() {
+            let mut child_matches = search_dir_recursive(&entry_path, query)?;
+            all_matches.append(&mut child_matches);
+        } else if name.ends_with(".md") {
+            match search_file(&entry_path, query) {
+                Ok(mut matches) => all_matches.append(&mut matches),
+                Err(_) => continue, // skip unreadable files
+            }
+        }
+    }
+    
+    Ok(all_matches)
+}
+
+#[command]
+async fn search_vault(path: String, query: String) -> Result<Vec<SearchMatch>, String> {
+    let mut matches = search_dir_recursive(&path, &query)?;
+    // Sort by score (desc) then line number (asc) then path (asc)
+    matches.sort_by(|a, b| {
+        b.score.cmp(&a.score)
+            .then_with(|| a.line.cmp(&b.line))
+            .then_with(|| a.path.cmp(&b.path))
+    });
+    Ok(matches)
 }
 
 #[command]
@@ -246,6 +334,10 @@ pub fn run() {
         .id("replace")
         .accelerator("CmdOrCtrl+H")
         .build(app)?;
+      let vault_search = MenuItemBuilder::new("Search Vault")
+        .id("vault_search")
+        .accelerator("CmdOrCtrl+Shift+F")
+        .build(app)?;
       let undo = PredefinedMenuItem::undo(app, None)?;
       let redo = PredefinedMenuItem::redo(app, None)?;
       let cut = PredefinedMenuItem::cut(app, None)?;
@@ -265,6 +357,7 @@ pub fn run() {
         .separator()
         .item(&find)
         .item(&replace)
+        .item(&vault_search)
         .build()?;
       
       // View menu
@@ -326,6 +419,7 @@ pub fn run() {
       pick_folder,
       read_dir,
       scan_vault,
+      search_vault,
       save_file_dialog,
       print_window,
       export_pdf,
