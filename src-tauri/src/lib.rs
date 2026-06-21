@@ -25,6 +25,18 @@ pub struct SearchMatch {
     score: usize, // number of matches in the same file
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct GraphNode {
+    id: String,
+    label: String,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct GraphEdge {
+    source: String,
+    target: String,
+}
+
 #[command]
 async fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
@@ -191,6 +203,144 @@ async fn search_vault(path: String, query: String) -> Result<Vec<SearchMatch>, S
             .then_with(|| a.path.cmp(&b.path))
     });
     Ok(matches)
+}
+
+fn collect_md_files(dir: &std::path::Path) -> Result<Vec<std::path::PathBuf>, String> {
+    let mut files = Vec::new();
+    let dir_iter = fs::read_dir(dir).map_err(|e| e.to_string())?;
+    for entry in dir_iter {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let name = path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+        
+        if name.starts_with('.') {
+            continue;
+        }
+        
+        if path.is_dir() {
+            let mut child_files = collect_md_files(&path)?;
+            files.append(&mut child_files);
+        } else if name.ends_with(".md") {
+            files.push(path);
+        }
+    }
+    Ok(files)
+}
+
+fn extract_wikilinks(content: &str) -> Vec<String> {
+    let mut links = Vec::new();
+    let mut remaining = content;
+    while let Some(start) = remaining.find("[[") {
+        remaining = &remaining[start + 2..];
+        if let Some(end) = remaining.find("]]") {
+            let inner = &remaining[..end];
+            let target = inner.split('|').next().unwrap_or(inner).trim();
+            let target = target.split('#').next().unwrap_or(target).trim();
+            if !target.is_empty() {
+                links.push(target.to_string());
+            }
+            remaining = &remaining[end + 2..];
+        } else {
+            break;
+        }
+    }
+    links
+}
+
+fn resolve_wikilink(
+    target: &str,
+    vault_path: &str,
+    name_map: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    let target = target.trim();
+    if target.is_empty() {
+        return None;
+    }
+
+    // If it looks like a path, try direct resolution
+    if target.contains('/') || target.contains('\\') {
+        let full_path = std::path::Path::new(vault_path).join(&target);
+        let full_path = if full_path.extension().is_none() {
+            full_path.with_extension("md")
+        } else {
+            full_path
+        };
+        if full_path.exists() {
+            return Some(full_path.to_string_lossy().to_string());
+        }
+    }
+
+    // Otherwise look up by lowercase stem
+    let lookup = target.to_lowercase();
+    if let Some(path) = name_map.get(&lookup) {
+        return Some(path.clone());
+    }
+
+    None
+}
+
+#[command]
+async fn get_graph_data(path: String) -> Result<(Vec<GraphNode>, Vec<GraphEdge>), String> {
+    let vault_path = std::path::Path::new(&path);
+
+    // Collect all .md files
+    let md_files = collect_md_files(vault_path)?;
+
+    // Build name -> path map (lowercase stem)
+    let mut name_map = std::collections::HashMap::new();
+    for file_path in &md_files {
+        let name = file_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        let stem = if name.ends_with(".md") {
+            &name[..name.len() - 3]
+        } else {
+            name
+        };
+        name_map.insert(stem.to_lowercase(), file_path.to_string_lossy().to_string());
+    }
+
+    // Build nodes and edges
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+
+    for file_path in &md_files {
+        let path_str = file_path.to_string_lossy().to_string();
+        let label = file_path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("untitled");
+        let label = if label.ends_with(".md") {
+            &label[..label.len() - 3]
+        } else {
+            label
+        };
+
+        nodes.push(GraphNode {
+            id: path_str.clone(),
+            label: label.to_string(),
+        });
+
+        let content = fs::read_to_string(file_path).unwrap_or_default();
+        let links = extract_wikilinks(&content);
+
+        let mut seen_edges = std::collections::HashSet::new();
+        for link in links {
+            if let Some(target_path) = resolve_wikilink(&link, &path, &name_map) {
+                let key = format!("{}-{}", path_str, target_path);
+                if seen_edges.insert(key) {
+                    edges.push(GraphEdge {
+                        source: path_str.clone(),
+                        target: target_path,
+                    });
+                }
+            }
+        }
+    }
+
+    Ok((nodes, edges))
 }
 
 #[command]
@@ -420,6 +570,7 @@ pub fn run() {
       read_dir,
       scan_vault,
       search_vault,
+      get_graph_data,
       save_file_dialog,
       print_window,
       export_pdf,
