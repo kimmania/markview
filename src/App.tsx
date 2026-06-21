@@ -6,7 +6,7 @@ import {
   Panel,
   Separator,
 } from 'react-resizable-panels';
-import { Folder, FileText, FolderOpen, Settings, Search, BookOpen, Network } from 'lucide-react';
+import { Folder, FileText, FolderOpen, Settings, Search, BookOpen } from 'lucide-react';
 import mermaid from 'mermaid';
 import Editor from './components/Editor';
 import MarkdownPreview from './components/MarkdownPreview';
@@ -16,7 +16,6 @@ import FolderTree from './components/FolderTree';
 import TabBar from './components/TabBar';
 import QuickSwitcher from './components/QuickSwitcher';
 import VaultSearchModal from './components/VaultSearchModal';
-import GraphView from './components/GraphView';
 import type { FileEntry, Tab } from './types';
 import SettingsModal, { loadSettings, type Settings as AppSettings } from './components/SettingsModal';
 import HelpModal from './components/HelpModal';
@@ -74,14 +73,6 @@ function App() {
   }, [darkMode]);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [vaultSearchOpen, setVaultSearchOpen] = useState(false);
-  const [graphViewOpen, setGraphViewOpen] = useState(false);
-  const [graphNodes, setGraphNodes] = useState<
-    Array<{ id: string; label: string }>
-  >([]);
-  const [graphEdges, setGraphEdges] = useState<
-    Array<{ source: string; target: string }>
-  >([]);
-  const [graphLoading, setGraphLoading] = useState(false);
 
   // ---- Settings ----
   const [settings, setSettings] = useState<AppSettings>(loadSettings('{}'));
@@ -131,17 +122,6 @@ function App() {
       }
     });
   }, []);
-
-  // Close graph view when switching files or vaults
-  useEffect(() => {
-    if (activePath) {
-      setGraphViewOpen(false);
-    }
-  }, [activePath]);
-
-  useEffect(() => {
-    setGraphViewOpen(false);
-  }, [vaultPath]);
 
   useEffect(() => {
     // Listen for system theme changes when theme is "system"
@@ -388,27 +368,6 @@ function App() {
     setVaultEntries(entries);
   };
 
-  const openGraphView = useCallback(async () => {
-    if (!vaultPath) return;
-    setGraphViewOpen(true);
-    setGraphLoading(true);
-    try {
-      const result = await invoke('get_graph_data', { path: vaultPath });
-      const [nodes, edges] = result as [
-        Array<{ id: string; label: string }>,
-        Array<{ source: string; target: string }>
-      ];
-      setGraphNodes(nodes);
-      setGraphEdges(edges);
-    } catch (e) {
-      console.error('Failed to load graph data:', e);
-      setGraphNodes([]);
-      setGraphEdges([]);
-    } finally {
-      setGraphLoading(false);
-    }
-  }, [vaultPath]);
-
   // ---- Keyboard shortcuts ----
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -504,13 +463,6 @@ function App() {
                   <kbd className="ml-auto text-xs px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500">
                     ⌘⇧F
                   </kbd>
-                </button>
-                <button
-                  onClick={openGraphView}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <Network className="w-4 h-4" />
-                  Graph View
                 </button>
               </>
             )}
@@ -667,16 +619,7 @@ function App() {
         />
 
         {/* Editor Area */}
-        {graphViewOpen ? (
-          <GraphView
-            nodes={graphNodes}
-            edges={graphEdges}
-            loading={graphLoading}
-            darkMode={darkMode}
-            activePath={activePath}
-            onNodeClick={openFile}
-          />
-        ) : activeTab ? (
+        {activeTab ? (
           viewMode === 'split' ? (
             <Group
               orientation="horizontal"
