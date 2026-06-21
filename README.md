@@ -4,18 +4,48 @@ A modern desktop Markdown editor and vault manager for macOS and Windows. Built 
 
 ## Features
 
-- 🗂️ **Vault Mode** — Open a folder as your markdown workspace
+### Core Editing
+- 🗂️ **Vault Mode** — Open any folder as your markdown workspace
+- 🗂️ **Multi-Tab** — Open multiple files in tabs with unsaved-change indicators
+- ✂️ **Markdown Toolbar** — Bold, italic, headings, lists, links, code, tables, and Mermaid diagrams
+- ✂️ **Source / Split / Preview** — Toggle between raw markdown, side-by-side, and full preview
+- 📝 **Inline Preview** — Click any paragraph, heading, or list in preview to jump directly to its source
+- 📄 **PDF Export** — Print-ready export via the browser print dialog
+
+### Navigation
 - 📁 **Folder Tree** — Recursive collapsible sidebar with file navigation
-- 📑 **Multi-Tab** — Open multiple files in tabs with unsaved-change indicators
 - ⚡ **Quick Switcher** — `Cmd+P` fuzzy file search across the vault
-- ✂️ **Split-Pane** — Live editor ↔ preview with draggable resizer
-- 📝 **Live Preview** — GFM-rendered markdown with syntax highlighting
+- 🔍 **Vault Search** — `Cmd+Shift+F` full-text search across all notes (content + filenames)
+- 🔗 **WikiLinks** — Obsidian-style `[[Note Name]]` internal links that open the target file
+- 🌙 **Dark Mode** — Light, dark, or system theme with settings persistence
+
+### Markdown Extensions
 - 🧮 **Math (KaTeX)** — Inline `$...$` and block `$$...$$` LaTeX math rendering
-- 📊 **Diagrams (Mermaid)** — Flowcharts, sequence diagrams, and more
-- 🔗 **WikiLinks** — Obsidian-style `[[Note Name]]` internal links
+- 📊 **Diagrams (Mermaid)** — Flowcharts, sequence diagrams, and more via code blocks
 - 🖼️ **Local Images** — Relative image paths resolved against the current note
-- 🌙 **Dark Mode** — Toggle between light and dark themes
-- 🖥️ **Native** — Desktop app using native WebKit/WebView2
+- 🌐 **External Links** — Standard `[text](url)` and autolinking
+
+### Productivity
+- ⚙️ **Settings** — Editor font size, line height, theme preferences (persisted to disk)
+- 📂 **Session Restore** — Remembers open tabs, active file, and vault across restarts
+- ⌨️ **Native Keyboard Shortcuts** — See shortcuts table below
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+P` / `Ctrl+P` | Quick Switcher — fuzzy find files |
+| `Cmd+Shift+F` / `Ctrl+Shift+F` | Vault Search — full-text search across all notes |
+| `Cmd+S` / `Ctrl+S` | Save current file |
+| `Cmd+Shift+S` / `Ctrl+Shift+S` | Save current file as... |
+| `Cmd+\` / `Ctrl+\` | Cycle view mode: Source → Split → Preview |
+| `Cmd+Shift+\` / `Ctrl+Shift+\` | Formatting toolbar: opening a menu or toggling panels |
+
+CodeMirror editor shortcuts (available in Source and Split modes):
+- `Cmd+B` / `Ctrl+B` — Bold
+- `Cmd+I` / `Ctrl+I` — Italic
+- `Cmd+Z` / `Ctrl+Z` — Undo
+- `Cmd+Shift+Z` / `Ctrl+Shift+Z` — Redo
 
 ## Tech Stack
 
@@ -28,12 +58,10 @@ A modern desktop Markdown editor and vault manager for macOS and Windows. Built 
 | Renderer | `react-markdown` + `remark-gfm` + `remark-math` |
 | Math | KaTeX (`rehype-katex`) |
 | Diagrams | Mermaid 11 |
-| State | Zustand |
 | Panels | `react-resizable-panels` |
+| State | React `useState` + localStorage |
 
 ## Markdown Syntax Examples
-
-Markview supports standard Markdown plus the extensions below.
 
 ### KaTeX Math
 
@@ -115,13 +143,6 @@ def hello():
 ```
 ```
 
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+P` / `Ctrl+P` | Quick Switcher — fuzzy find files |
-| `Cmd+S` / `Ctrl+S` | Save current file |
-
 ## Development
 
 ### Prerequisites
@@ -145,19 +166,16 @@ npm run tauri dev
 npm run tauri build
 ```
 
+The production app will be generated in `src-tauri/target/release/bundle/` with the platform-specific format (`.dmg` on macOS, `.msi`/`.exe` on Windows, `.AppImage`/`.deb` on Linux).
+
 ## Roadmap
 
-See the full [Product Plan](.hermes/plans/2026-06-19_markdown-viewer-editor-plan.md) for build phases.
+See the full [Product Plan](.hermes/plans/markview-v2-plan.md) for historical build phases.
 
-| Phase | Status | Description |
-|-------|--------|-------------|
-| 0: Bootstrap | ✅ | Vite + Tauri scaffold, build pipelines |
-| 1: Core Shell & File I/O | ✅ | Vault picker, read/write, dark mode |
-| 2: Live Split-Pane Preview | ✅ | CodeMirror editor + GFM live preview |
-| 3: Sidebar & Tabs | ✅ | Folder tree, multi-tab, quick switcher |
-| 4: Markdown Enhancements | ✅ | KaTeX, Mermaid, WikiLinks, images |
-| 5: Settings, Find/Replace, Polish | ✅ | Settings modal, auto-save, native menus, word count, restore tabs |
-| 6: Distribution | ✅ | GitHub Release `v0.1.0` with `.dmg` for Apple Silicon |
+| Version | Status | Highlights |
+|---------|--------|------------|
+| v0.1.0 | ✅ | Vault I/O, split-pane preview, KaTeX, Mermaid, WikiLinks |
+| v2.0.0 | ✅ | Toolbar, view modes, inline editing, settings, vault search, PDF export, session restore |
 
 ## License
 
