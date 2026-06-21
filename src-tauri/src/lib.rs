@@ -3,6 +3,10 @@ use tauri_plugin_dialog::DialogExt;
 use std::fs;
 use std::path::Path;
 use serde::Serialize;
+use std::ptr::NonNull;
+use objc2::MainThreadMarker;
+use objc2_foundation::{NSData, NSError};
+use objc2_web_kit::WKWebView;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct FileEntry {
@@ -117,6 +121,60 @@ async fn save_file_dialog(
 #[command]
 async fn print_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.print().map_err(|e| e.to_string())
+}
+
+#[command]
+async fn export_pdf(
+    window: tauri::WebviewWindow,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    use std::sync::mpsc;
+
+    let (tx, rx) = mpsc::channel::<Result<Vec<u8>, String>>();
+
+    window.with_webview(move |webview| {
+        let inner = webview.inner();
+        let wk: &WKWebView = unsafe { &*(inner as *mut WKWebView) };
+
+        let mtm = MainThreadMarker::new().expect("must be on main thread");
+        let config = unsafe { objc2_web_kit::WKPDFConfiguration::new(mtm) };
+
+        let block = block2::RcBlock::new(move |data: *mut NSData, error: *mut NSError| {
+            let result = if !error.is_null() {
+                Err("PDF generation failed".to_string())
+            } else if !data.is_null() {
+                let nsdata = unsafe { &*data };
+                let len = nsdata.length();
+                let mut buf = vec![0u8; len as usize];
+                let ptr = NonNull::new(buf.as_mut_ptr() as *mut std::ffi::c_void).unwrap();
+                unsafe { nsdata.getBytes_length(ptr, len) };
+                Ok(buf)
+            } else {
+                Err("No PDF data received".to_string())
+            };
+            let _ = tx.send(result);
+        });
+
+        unsafe {
+            wk.createPDFWithConfiguration_completionHandler(Some(&config), &block);
+        }
+    }).map_err(|e| e.to_string())?;
+
+    let pdf_bytes = rx.recv().map_err(|e| e.to_string())??;
+
+    let path = app_handle
+        .dialog()
+        .file()
+        .add_filter("PDF", &["pdf"])
+        .blocking_save_file();
+
+    if let Some(path) = path {
+        let path_str = path.to_string();
+        std::fs::write(&path_str, pdf_bytes).map_err(|e| e.to_string())?;
+        Ok(path_str)
+    } else {
+        Err("Save cancelled".to_string())
+    }
 }
 
 #[command]
@@ -270,6 +328,7 @@ pub fn run() {
       scan_vault,
       save_file_dialog,
       print_window,
+      export_pdf,
       get_settings,
       set_settings,
     ])

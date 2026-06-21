@@ -36,13 +36,6 @@ function App() {
   const [isPrinting, setIsPrinting] = useState(false);
 
   const exportToPDF = async () => {
-    if (settings.showPdfHelp) {
-      const msg = `To save as PDF on macOS:\n\n1. In the print dialog, click the PDF dropdown in the bottom-left corner.\n2. Select Save as PDF.\n\n(This hint won't show again.)`;
-      alert(msg);
-      const updated = { ...settings, showPdfHelp: false };
-      setSettings(updated);
-      await invoke('set_settings', { settings_json: JSON.stringify(updated) });
-    }
     setIsPrinting(true);
     // Wait for React to paint the print view, then a tick for Mermaid/KaTeX
     await new Promise<void>((resolve) => {
@@ -52,8 +45,17 @@ function App() {
         });
       });
     });
-    await invoke('print_window');
-    setIsPrinting(false);
+    try {
+      await invoke('export_pdf');
+    } catch (e: any) {
+      if (typeof e === 'string' && e.includes('Save cancelled')) {
+        // User cancelled the save dialog — silently ignore
+      } else {
+        console.warn('PDF export failed:', e);
+      }
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const cycleViewMode = () => {
