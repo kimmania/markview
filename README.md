@@ -2,6 +2,25 @@
 
 A modern desktop Markdown editor and vault manager for macOS and Windows. Built with **Tauri v2 + React + TypeScript + Tailwind CSS**.
 
+## Installation
+
+### macOS
+
+Markview is distributed as an unsigned `.dmg` for Apple Silicon (M1–M5 and later).
+
+1. Download the latest `.dmg` from the [Releases](https://github.com/kimmania/markview/releases) page.
+2. **Remove the quarantine attribute** so Gatekeeper allows the install:
+   ```bash
+   xattr -d com.apple.quarantine ~/Downloads/Markview_*.dmg
+   ```
+3. Mount the `.dmg` and drag `Markview.app` into your **Applications** folder.
+4. **If the app still reports as "damaged,"** also clear the quarantine on the app itself:
+   ```bash
+   xattr -d com.apple.quarantine /Applications/Markview.app
+   ```
+
+> **Alternative:** When macOS shows the "Markview is damaged" dialog, open **System Settings → Privacy & Security** and click **Open Anyway** after the first block.
+
 ## Features
 
 ### Core Editing
