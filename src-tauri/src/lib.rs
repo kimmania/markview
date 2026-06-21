@@ -246,12 +246,12 @@ pub fn run() {
         .id("replace")
         .accelerator("CmdOrCtrl+H")
         .build(app)?;
-      let undo = MenuItem::with_id(app, "undo", "Undo", true, Some("CmdOrCtrl+Z"))?;
-      let redo = MenuItem::with_id(app, "redo", "Redo", true, Some("CmdOrCtrl+Shift+Z"))?;
-      let cut = MenuItem::with_id(app, "cut", "Cut", true, Some("CmdOrCtrl+X"))?;
-      let copy = MenuItem::with_id(app, "copy", "Copy", true, Some("CmdOrCtrl+C"))?;
-      let paste = MenuItem::with_id(app, "paste", "Paste", true, Some("CmdOrCtrl+V"))?;
-      let select_all = MenuItem::with_id(app, "select_all", "Select All", true, Some("CmdOrCtrl+A"))?;
+      let undo = PredefinedMenuItem::undo(app, None)?;
+      let redo = PredefinedMenuItem::redo(app, None)?;
+      let cut = PredefinedMenuItem::cut(app, None)?;
+      let copy = PredefinedMenuItem::copy(app, None)?;
+      let paste = PredefinedMenuItem::paste(app, None)?;
+      let select_all = PredefinedMenuItem::select_all(app, None)?;
       
       let edit_menu = SubmenuBuilder::new(app, "Edit")
         .item(&undo)

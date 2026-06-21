@@ -7,6 +7,7 @@ export interface Settings {
   autoSave: boolean;
   lastVaultPath?: string;
   openTabs?: string[];
+  activeTab?: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {

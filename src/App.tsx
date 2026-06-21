@@ -97,7 +97,7 @@ function App() {
       // Restore open tabs
       if (s.openTabs && s.openTabs.length > 0) {
         const paths = s.openTabs.filter((p) => p.endsWith('.md'));
-        Promise.all(
+        Promise.allSettled(
           paths.map((path) =>
             invoke<string>('read_file', { path }).then((text) => ({
               path,
@@ -106,9 +106,16 @@ function App() {
               unsaved: false,
             }))
           )
-        ).then((newTabs) => {
+        ).then((results) => {
+          const newTabs = results
+            .filter((r): r is PromiseFulfilledResult<Tab> => r.status === 'fulfilled')
+            .map((r) => r.value);
           setTabs(newTabs);
-          if (newTabs.length > 0) setActivePath(newTabs[0].path);
+          const restoredActive =
+            s.activeTab && newTabs.some((t) => t.path === s.activeTab)
+              ? s.activeTab
+              : newTabs[0]?.path ?? null;
+          setActivePath(restoredActive);
         });
       }
     });
@@ -139,14 +146,28 @@ function App() {
         ...settings,
         lastVaultPath: vaultPath ?? undefined,
         openTabs: tabs.map((t) => t.path),
+        activeTab: activePath ?? undefined,
       };
       invoke('set_settings', { settings_json: JSON.stringify(updated) });
     }, 500);
     return () => clearTimeout(timer);
   }, [vaultPath, tabs.length, activePath]);
 
-  // ---- Editor ref for menu-driven Find ----
+  // ---- Editor view state ----
   const [editorView, setEditorView] = useState<EditorView | null>(null);
+
+  // ---- Refs for native menu actions (avoid stale closures) ----
+  const vaultPathRef = useRef<string | null>(null);
+  vaultPathRef.current = vaultPath;
+
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const editorViewRef = useRef<EditorView | null>(null);
+  editorViewRef.current = editorView;
+
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   // ---- Menu event listener ----
   useEffect(() => {
@@ -170,15 +191,22 @@ function App() {
           setSidebarVisible((v) => !v);
           break;
         case 'toggle_dark':
-          setDarkMode((v) => !v);
+          setDarkMode((prev) => {
+            const next = !prev;
+            const newTheme: 'light' | 'dark' = next ? 'dark' : 'light';
+            const updated = { ...settingsRef.current, theme: newTheme };
+            setSettings(updated);
+            invoke('set_settings', { settings_json: JSON.stringify(updated) });
+            return next;
+          });
           break;
         case 'cycle_view':
           cycleViewMode();
           break;
         case 'find':
         case 'replace':
-          if (editorView) {
-            openSearchPanel(editorView);
+          if (editorViewRef.current) {
+            openSearchPanel(editorViewRef.current);
           }
           break;
       }
@@ -262,20 +290,18 @@ function App() {
   };
 
   const saveFile = async () => {
-    if (!activeTab) return;
+    const tab = activeTabRef.current;
+    if (!tab) return;
     await invoke('write_file', {
-      path: activeTab.path,
-      content: activeTab.content,
+      path: tab.path,
+      content: tab.content,
     });
     setTabs((prev) =>
-      prev.map((t) => (t.path === activeTab.path ? { ...t, unsaved: false } : t))
+      prev.map((t) => (t.path === tab.path ? { ...t, unsaved: false } : t))
     );
   };
 
   // ---- Auto-save ----
-  const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
-
   useEffect(() => {
     if (!settings.autoSave || !activeTab?.unsaved) return;
     const timer = setTimeout(() => {
@@ -289,41 +315,44 @@ function App() {
   }, [activeTab?.content, settings.autoSave]);
 
   const saveAsFile = async () => {
-    if (!activeTab) return;
+    const tab = activeTabRef.current;
+    if (!tab) return;
     const newPath = await save({
-      defaultPath: activeTab.name,
+      defaultPath: tab.name,
       filters: [{ name: 'Markdown', extensions: ['md'] }],
     });
     if (newPath) {
       await invoke('write_file', {
         path: newPath,
-        content: activeTab.content,
+        content: tab.content,
       });
       // Update the active tab to point to the new file
       const newName = newPath.split('/').pop() || newPath;
       setTabs((prev) =>
         prev.map((t) =>
-          t.path === activeTab.path
+          t.path === tab.path
             ? { ...t, path: newPath, name: newName, unsaved: false }
             : t
         )
       );
       setActivePath(newPath);
       // Refresh vault tree if the new file lives in the current vault
-      if (vaultPath && newPath.startsWith(vaultPath)) {
-        const scanned = await invoke<FileEntry[]>('scan_vault', { path: vaultPath });
+      const vp = vaultPathRef.current;
+      if (vp && newPath.startsWith(vp)) {
+        const scanned = await invoke<FileEntry[]>('scan_vault', { path: vp });
         setVaultEntries(scanned);
       }
     }
   };
 
   const createFile = async () => {
+    const vp = vaultPathRef.current;
     const name = prompt('New file name:', 'untitled.md');
-    if (name && vaultPath) {
-      const path = `${vaultPath}/${name}`;
+    if (name && vp) {
+      const path = `${vp}/${name}`;
       await invoke('write_file', { path, content: '' });
       // Scan vault
-      const scanned = await invoke<FileEntry[]>('scan_vault', { path: vaultPath });
+      const scanned = await invoke<FileEntry[]>('scan_vault', { path: vp });
       setVaultEntries(scanned);
       // Open in new tab
       openFile(path);
